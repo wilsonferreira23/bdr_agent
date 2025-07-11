@@ -25,11 +25,13 @@ logging.basicConfig(
 job_storage: Dict[str, dict] = {}
 
 # --- MODELOS DE DADOS (PYDANTIC) ---
-
 class EmpresaInput(BaseModel):
     """Define a estrutura de uma única empresa na lista de entrada."""
     cnpj: str
     razao_social: str
+
+    class Config:
+        extra = "ignore"
 
 # ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
 class EnrichmentRequest(BaseModel):
