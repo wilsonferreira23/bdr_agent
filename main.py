@@ -12,7 +12,7 @@ import aiohttp
 import pandas as pd
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, validator 
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 # --- CONFIGURAÇÃO INICIAL E LOGGING ---
@@ -25,19 +25,41 @@ logging.basicConfig(
 job_storage: Dict[str, dict] = {}
 
 # --- MODELOS DE DADOS (PYDANTIC) ---
+
 class EmpresaInput(BaseModel):
     """Define a estrutura de uma única empresa na lista de entrada."""
     cnpj: str
     razao_social: str
 
     class Config:
+        # Esta configuração ainda é necessária para ignorar campos como
+        # 'nome_fantasia' dentro de cada objeto da lista.
         extra = "ignore"
 
-# ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
+# ▼▼▼ ALTERAÇÃO PRINCIPAL AQUI ▼▼▼
 class EnrichmentRequest(BaseModel):
-    """Define a estrutura do corpo (body) da requisição para o endpoint /enrich."""
+    """
+    Define a estrutura do corpo (body) da requisição para o endpoint /enrich.
+    Agora, aceita o campo 'empresas' tanto como uma lista quanto como uma string JSON.
+    """
     empresas: List[EmpresaInput]
-    api_key: str  # Adicionado campo para receber a chave de API dinamicamente
+    api_key: str
+
+    @validator('empresas', pre=True)
+    def parse_empresas_from_str(cls, v):
+        """
+        Validador que roda ANTES da validação padrão.
+        Se o campo 'empresas' for uma string, tenta convertê-lo de JSON para uma lista Python.
+        """
+        if isinstance(v, str):
+            try:
+                # Se for uma string, faz o parse do JSON para uma lista
+                return json.loads(v)
+            except json.JSONDecodeError:
+                # Se a string não for um JSON válido, levanta um erro claro.
+                raise ValueError("O campo 'empresas' foi enviado como uma string, mas não é um JSON válido.")
+        # Se já for uma lista (ou outro tipo), apenas retorna para a validação padrão.
+        return v
 
 # --- LÓGICA DE NEGÓCIO: ENRIQUECIMENTO DE DADOS ---
 # (Nenhuma alteração nas funções extract_target_data, fetch_cnpj_details e process_enrichment_task)
