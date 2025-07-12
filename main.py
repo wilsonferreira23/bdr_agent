@@ -217,7 +217,8 @@ async def process_search_and_enrich_task(job_id: str, request: SearchAndEnrichRe
         if not cnpjs_data:
             duration_seconds = time.monotonic() - start_time
             logging.warning(f"Job {job_id}: A busca não retornou nenhum CNPJ.")
-            job_storage[job_id] = {"status": "complete", "data": None, "message": "A busca com os filtros fornecidos não retornou nenhum CNPJ.", "duration_seconds": duration_seconds}
+            # ▼▼▼ ALTERAÇÃO AQUI ▼▼▼
+            job_storage[job_id] = {"status": "no_results", "message": "A busca com os filtros fornecidos não retornou nenhum CNPJ.", "duration_seconds": duration_seconds}
             return
 
         # Converter a resposta da busca para o formato EmpresaInput
@@ -299,20 +300,27 @@ async def start_enrichment(request: EnrichmentRequest, background_tasks: Backgro
 @app.get("/results/{job_id}", summary="Verifica o Status e Baixa o Resultado")
 def get_result(job_id: str):
     """
-    Verifica o status de um trabalho e retorna o arquivo CSV se estiver concluído.
+    Verifica o status de um trabalho. Se concluído, retorna o arquivo CSV.
+    Se não encontrou resultados, retorna uma mensagem JSON.
     """
     job = job_storage.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="ID de trabalho não encontrado.")
-    
+
     status = job.get("status")
-    
+
     if status == "processing":
         return {"status": "processing", "message": "Seu arquivo ainda está sendo processado. Tente novamente em alguns instantes."}
-    
+
     if status == "failed":
         raise HTTPException(status_code=500, detail=f"Ocorreu um erro ao processar seu trabalho: {job.get('message')}")
-    
+
+    # ▼▼▼ NOVA LÓGICA AQUI ▼▼▼
+    # Retorna uma resposta JSON normal se não houver resultados.
+    if status == "no_results":
+        return {"status": "no_results", "message": job.get("message")}
+
+    # Retorna o arquivo CSV para download se o trabalho foi completo com dados.
     if status == "complete" and job.get("data"):
         csv_bytes = job.get("data")
         duration = job.get("duration_seconds", 0)
@@ -320,5 +328,6 @@ def get_result(job_id: str):
         response.headers["Content-Disposition"] = f"attachment; filename=resultado_{job_id}.csv"
         response.headers["X-Processing-Time-Seconds"] = f"{duration:.2f}"
         return response
-        
+
+    # Fallback para outros casos (ex: completo mas enriquecimento falhou para todos)
     return {"status": "complete", "message": job.get("message", "Processamento concluído, mas sem dados para retornar.")}
