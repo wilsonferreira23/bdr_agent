@@ -51,7 +51,7 @@ class EnrichmentRequest(BaseModel):
 
 # Modelos para a API combinada (/search-and-enrich)
 class CapitalSocialInput(BaseModel):
-    minimo: int = Field(50000, description="Valor mínimo do capital social.")
+    minimo: int = Field(10000, description="Valor mínimo do capital social.")
 
 class MeiInput(BaseModel):
     optante: bool = False
@@ -63,7 +63,7 @@ class MaisFiltrosInput(BaseModel):
     somente_celular: bool = True
     somente_fixo: bool = False
     somente_matriz: bool = False
-    excluir_empresas_visualizadas: bool = False
+    excluir_empresas_visualizadas: bool = True
     excluir_email_contab: bool = True
 
 class SearchAndEnrichRequest(BaseModel):
@@ -80,7 +80,7 @@ class SearchAndEnrichRequest(BaseModel):
     situacao_cadastral: List[str] = Field(["ATIVA"], description="Situação cadastral da empresa.")
     
     # Parâmetros variáveis (agora aceitam string ou int)
-    capital_social_minimo: int = Field(50000, description="Valor mínimo do capital social para o filtro.")
+    capital_social_minimo: int = Field(10000, description="Valor mínimo do capital social para o filtro.")
     limite: int = Field(5, description="Número máximo de CNPJs a serem buscados e enriquecidos.", le=1000)
     pagina: int = Field(1, description="Página da consulta.")
 
