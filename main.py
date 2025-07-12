@@ -13,6 +13,7 @@ import pandas as pd
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, validator
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 # --- CONFIGURAÇÃO INICIAL E LOGGING ---
 logging.basicConfig(
